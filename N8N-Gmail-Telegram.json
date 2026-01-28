@@ -1,0 +1,326 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -592,
+        -32
+      ],
+      "id": "",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "murciaeduca.es",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -336,
+        -32
+      ],
+      "id": "",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $node[\"Gmail Trigger\"].json[\"Subject\"]\n+ \" \" + $node[\"Gmail Trigger\"].json[\"snippet\"] }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "amistoso"
+            },
+            {
+              "category": "queja o agresivo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -48,
+        -48
+      ],
+      "id": "",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        192
+      ],
+      "id": "",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres un Asistente de Soporte al Cliente, cortés y profesional, que opera en un entorno educativo. Tu tarea es generar la respuesta completa por correo electrónico.\n\nAnaliza el tono y la intención del correo que se te proporciona:\nASUNTO DEL CORREO: \"{{ $json.Subject }}\"\nCONTENIDO DEL CORREO: \"{{ $json.snippet }}\"\n\n---\n\n**REGLAS DE RESPUESTA:**\n\n1.  **SI el tono es de QUEJA o AGRESIVO (Identificado por la IA):**\n    * Genera una respuesta de disculpa formal, humilde y respetuosa.\n    * Asegura al remitente que la queja ha sido **escalada y será investigada con la máxima prioridad**.\n    * Incluye una disculpa sincera por los inconvenientes experimentados.\n    * **CERTIFICA la SOLUCIÓN:** Finaliza con un párrafo que **valide los pasos a seguir** para solucionar el problema (ej., \"Confirmamos que se ha generado un ticket de soporte con el número XXXXXX y le notificaremos en las próximas 24 horas sobre el progreso de la solución.\").\n\n2.  **SI el tono es AMISTOSO, NEUTRO, o de PRUEBA (Identificado por la IA):**\n    * Genera una respuesta breve, cordial y directa.\n    * Agradece el contacto (ej., \"Gracias por escribirnos\").\n    * Responde directamente a la consulta o confirma el recibo de la prueba/saludo.\n\n---\n\nGenera **SOLAMENTE** el cuerpo del correo de respuesta. No incluyas líneas de Asunto.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "resource": "thread",
+        "operation": "reply",
+        "threadId": "={{ $node[\"Gmail Trigger\"].json[\"threadId\"] }}",
+        "messageId": "={{ $node[\"Gmail Trigger\"].json[\"id\"] }}",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1104,
+        -240
+      ],
+      "id": "",
+      "name": "Reply to a message",
+      "webhookId": "",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "",
+        "text": "=🚨 ALERTA: QUEJA CRÍTICA 🚨  ¡Una queja de murciaeduca.es ha sido recibida y clasificada como agresiva! Se ha enviado una respuesta automática de disculpa.  Remitente: {{ $node[\"Gmail Trigger\"].json[\"From\"] }} Asunto: {{ $node[\"Gmail Trigger\"].json[\"Subject\"] }}  --- CONTENIDO ORIGINAL {{ $node[\"Gmail Trigger\"].json[\"snippet\"] }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        64
+      ],
+      "id": "",
+      "name": "Send a text message",
+      "webhookId": "",
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "",
+        "text": "=🔔 Alerta: Nuevo Correo Amistoso/Prueba Recibido\n\nEl correo NO requiere una respuesta formal de disculpa y ha sido clasificado como no crítico.  \n\nRemitente: {{ $node[\"Gmail Trigger\"].json[\"From\"] }} Asunto: {{ $node[\"Gmail Trigger\"].json[\"Subject\"] }}  --- CONTENIDO ORIGINAL {{ $node[\"Gmail Trigger\"].json[\"snippet\"] }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        288
+      ],
+      "id": "",
+      "name": "Send a text message1",
+      "webhookId": "",
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.output }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Contestacion a un mensaje agresivo o queja"
+            },
+            {
+              "category": "Contestacion a un mensaje amisotoso o duda"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        -64
+      ],
+      "id": "",
+      "name": "Text Classifier1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Text Classifier1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reply to a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "81b483e3-89d6-4e99-9bf2-5eb2ce5dd4f8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e5046ff9672c8cf7e4b0d62963c81bf39140190f8b94eb8105be281bbbc81e85"
+  },
+  "id": "",
+  "tags": []
+}
